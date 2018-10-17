@@ -145,6 +145,7 @@ def make_zipfile(dirs, manifest, manifest_name, top_level_name, outdir, exclude=
         for dir in dirs:
             f.write(dir, '%s/%s' % (top_level_name, dir))
             for root, dirs, files in os.walk(dir):
+                dirs[:] = [d for d in dirs if d not in exclude]
                 for file in files:
                     if exclude is None or file not in exclude:
                         name = os.path.join(root, file)
@@ -262,7 +263,7 @@ def main(argv=None):
         parser.add_argument('--base-version', '-B', required=True,
                             help="""Base version for manifest""")
         parser.add_argument('--name', '-n', required=True,
-                            help="""Artifact name (human readable). E.g. 'mocha-bcc-mac'.""")
+                            help="""Artifact name (human readable). E.g. 'libfoo-mac'.""")
         parser.add_argument('--bits', '-b', type=int, default=64,
                             help="""bits (32 or 64)""")
         parser.add_argument('--build-id', '-i',
