@@ -145,6 +145,7 @@ def make_zipfile(dirs, manifest, manifest_name, outname, top_level_name, outdir,
         for dir in dirs:
             f.write(dir, '%s/%s' % (top_level_name, dir))
             for root, dirs, files in os.walk(dir):
+                # print(f'Processing {root} {dirs} {files}')
                 dirs[:] = [d for d in dirs if d not in exclude]
                 for file in files:
                     if exclude is None or file not in exclude:
@@ -314,7 +315,7 @@ def main(argv=None):
                             help="""Don't build the archive; just return the hash of the given dir.""")
         parser.add_argument('--validate', action='store_true',
                             help="""Validate an unpacked archive by checking its hash against the manifest.""")
-        parser.add_argument('--exclude', action='append',
+        parser.add_argument('--exclude', action='append', default=[],
                             help="""Exclude this filename from the archive. May be repeated.""")
         parser.add_argument('dir', nargs='+',
                             help="""dirs to collect into the binary artifact""")
