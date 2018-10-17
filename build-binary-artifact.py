@@ -45,7 +45,7 @@ def write_manifest(name, args, extra):
               "build-os",
               "note"]
         for k in keys:
-            arg_key = k.translate(string.maketrans("-","_"))
+            arg_key = k.translate(str.maketrans("-","_"))
             line = "%s: %s\n" % (k, getattr(args, arg_key))
             f.write(line)
             if not args.silent:
@@ -72,9 +72,9 @@ def hash_dir_contents(dirs, ignore_pattern=None, verbose=False):
             raise IOError("Dir %s does not exist"%d)
         if os.path.isfile(d):
             if verbose:
-                print "Updating SHA with top-level file %s"%(d)
+                print("Updating SHA with top-level file %s"%(d))
             try:
-                SHAhash.update(d)
+                SHAhash.update(d.encode('utf-8'))
             except Exception as e:
                 raise RuntimeError("hash_dir_contents: exception %s processing %s"%(e, d))
         else:
@@ -90,9 +90,9 @@ def hash_dir_contents(dirs, ignore_pattern=None, verbose=False):
                         # make this stable across OSes since it could be compared on a different OS
                         # (only used for hashing)
                         relfilepath = os.path.normpath(os.path.join(relpath, name)).replace('\\', '/')
-                        SHAhash.update(relfilepath)
+                        SHAhash.update(relfilepath.encode('utf-8'))
                         if verbose:
-                            print "Updating SHA with file %s"%(relfilepath)
+                            print("Updating SHA with file %s"%(relfilepath))
                         try:
                             f1 = open(filepath, 'rb')
                         except:
@@ -178,7 +178,7 @@ def create_artifact(args):
     for d in args.dir:
         existing_manifest = os.path.join(d, manifest_name)
         if os.path.exists(existing_manifest):
-            print "WARNING: %s already exists in source dir %s; deleting from source!" % (manifest_name, d)
+            print("WARNING: %s already exists in source dir %s; deleting from source!" % (manifest_name, d))
             os.unlink(existing_manifest)
     if args.tar:
         resultfile = make_tarfile(args.dir, manifest, manifest_name, outname, outdir_path, args.exclude)
@@ -186,7 +186,7 @@ def create_artifact(args):
         resultfile = make_zipfile(args.dir, manifest, manifest_name, outname, outdir_path, args.exclude)
     os.unlink(manifest)
     if not args.silent:
-        print "Wrote %s"%resultfile
+        print("Wrote %s"%resultfile)
     sys.stderr.write("Created binary artifact %s\n" %resultfile)
 
 def print_artifact_name(args):
@@ -194,14 +194,14 @@ def print_artifact_name(args):
     if args.chdir:
         os.chdir(args.chdir)
     hash = hash_dir_contents(args.dir, ignore_pattern="*-manifest.txt")
-    print fullname(args, hash)
+    print(fullname(args, hash))
 
 def print_artifact_hash(args):
     orig_cwd=os.getcwd()
     if args.chdir:
         os.chdir(args.chdir)
     hash = hash_dir_contents(args.dir, ignore_pattern="*-manifest.txt")
-    print hash
+    print(hash)
 
 def validate_archive(args):
     """Validate that an unpacked archive has the correct hash.
@@ -209,22 +209,22 @@ def validate_archive(args):
     Exits with status 1 if mismatch.
     """
     dir = args.dir[0]
-    print "Validating archive in %s" % dir
+    print("Validating archive in %s" % dir)
     manifest = glob.glob("%s/*-manifest.txt" % dir)[0]
     if not manifest:
-        print "No manifest found in %s; can't validate." % dir
+        print("No manifest found in %s; can't validate." % dir)
         return
     manifest_contents = open(manifest, 'rb').read(1024*1024).splitlines()
     hashline = [x for x in manifest_contents if x.startswith("content-hash: ")]
     if hashline == []:
-        print "Can't find hash line in manifest %s" % manifest
+        print("Can't find hash line in manifest %s" % manifest)
         return
     key, expected = hashline[0].split(': ')
     hash = hash_dir_contents(dir, ignore_pattern="*-manifest.txt")
     if hash != expected:
-        print "Hash mismatch: actual %s, expected %s" % (hash, expected)
+        print("Hash mismatch: actual %s, expected %s" % (hash, expected))
         sys.exit(1)
-    print "Hash OK: %s."%hash
+    print("Hash OK: %s."%hash)
 
 def cmd(cmd, name):
     """Run shell command; if it fails, return None."""
@@ -312,9 +312,9 @@ def main(argv=None):
         args = parser.parse_args(argv)
 
         if args.build_branch is None:
-            print "Warning: Can't get default value for --build-branch; using None."
+            print("Warning: Can't get default value for --build-branch; using None.")
         if args.build_id is None:
-            print "Warning: Can't get default value for --build-id; using None."
+            print("Warning: Can't get default value for --build-id; using None.")
 
         if args.validate:
             validate_archive(args)
@@ -326,7 +326,7 @@ def main(argv=None):
             create_artifact(args)
         return 0
     except RuntimeError as e:
-        print e
+        print(e)
         return 1
 
 if __name__ == "__main__":
