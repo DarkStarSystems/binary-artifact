@@ -110,10 +110,10 @@ def hash_dir_contents(dirs, ignore_pattern=None, verbose=False):
                 raise RuntimeError("hash_dir_contents: exception '%s' processing '%s'"%(e, d))
     return SHAhash.hexdigest()[0:16]
 
-def make_tarfile(dirs, manifest, manifest_name, top_level_name, outdir, exclude=None):
-    """Make a tarfile named <top_level_name>.tgz from all the files in dir
+def make_tarfile(dirs, manifest, manifest_name, outname, top_level_name, outdir, exclude=None):
+    """Make a tarfile named <outname>.tgz from all the files in dir
     Include the manifest, so the result looks like:
-    tar filename: <top_level_name>.tgz
+    tar filename: <outname>.tgz
     contents:
       top_level_name/
         <manifest>
@@ -121,25 +121,25 @@ def make_tarfile(dirs, manifest, manifest_name, top_level_name, outdir, exclude=
           ...
     Note: exclude is not yet implemented.
     """
-    tarfilename = os.path.join(outdir, "%s.tgz" % top_level_name)
+    tarfilename = os.path.join(outdir, "%s.tgz" % outname)
     with tarfile.open(tarfilename, 'w:gz') as f:
         f.add(manifest, '%s/%s' % (top_level_name, manifest_name))
         for dir in dirs:
             f.add(dir, '%s/%s' % (top_level_name, dir))
     return tarfilename
 
-def make_zipfile(dirs, manifest, manifest_name, top_level_name, outdir, exclude=None):
-    """Make a zipfile named <top_level_name>.zip from all the files in dir
+def make_zipfile(dirs, manifest, manifest_name, outname, top_level_name, outdir, exclude=None):
+    """Make a zipfile named <outname>.zip from all the files in dir
     Include the manifest, so the result looks like:
-    zip filename: <top_level_name>.zip
+    zip filename: <outname>.zip
     contents:
-      top_level_name/
+      top_level_name/ (if --add-top-dir specified)
         <manifest>
         dir/
           ...
     Exclude any filename in the exclude list
     """
-    zipfilename = os.path.join(outdir, "%s.zip" % top_level_name)
+    zipfilename = os.path.join(outdir, "%s.zip" % outname)
     with zipfile.ZipFile(zipfilename, 'w', zipfile.ZIP_DEFLATED) as f:
         f.write(manifest, '%s/%s' % (top_level_name, manifest_name))
         for dir in dirs:
@@ -170,6 +170,12 @@ def create_artifact(args):
         os.chdir(args.chdir)
     hash = hash_dir_contents(sorted(args.dir), ignore_pattern="*-manifest.txt")
     outname = fullname(args, hash)
+    if args.top_dir_name is None:
+        top_dir_name = outname
+    elif args.top_dir_name in ('', '.'):
+        top_dir_name = '.'
+    else:
+        top_dir_name = args.top_dir_name
     manifest_name = '%s-manifest.txt' % args.name
     file, manifest = tempfile.mkstemp(prefix='%s-manifest'%args.name)
     os.close(file)
@@ -182,9 +188,11 @@ def create_artifact(args):
             print("WARNING: %s already exists in source dir %s; deleting from source!" % (manifest_name, d))
             os.unlink(existing_manifest)
     if args.tar:
-        resultfile = make_tarfile(args.dir, manifest, manifest_name, outname, outdir_path, args.exclude)
+        resultfile = make_tarfile(args.dir, manifest, manifest_name, outname, top_dir_name,
+                                  outdir_path, args.exclude)
     else:
-        resultfile = make_zipfile(args.dir, manifest, manifest_name, outname, outdir_path, args.exclude)
+        resultfile = make_zipfile(args.dir, manifest, manifest_name, outname, top_dir_name,
+                                  outdir_path, args.exclude)
     os.unlink(manifest)
     if not args.silent:
         print("Wrote %s"%resultfile)
@@ -310,6 +318,12 @@ def main(argv=None):
                             help="""Exclude this filename from the archive. May be repeated.""")
         parser.add_argument('dir', nargs='+',
                             help="""dirs to collect into the binary artifact""")
+        parser.add_argument('--top-dir-name', '-t',
+                            default=None,
+                            help="""Top dir of the resulting zip:\n"""
+                            """\tDefault=None means use the full name of the zip."""
+                            """\tA string means use that name as the top dir."""
+                            """\t'.' means no top dir; put the manifest and contents at top level.""")
         args = parser.parse_args(argv)
 
         if args.build_branch is None:

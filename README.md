@@ -105,6 +105,11 @@ optional arguments:
                         against the manifest. (default: False)
   --exclude EXCLUDE     Exclude this filename from the archive. May be
                         repeated. (default: None)
+  --top-dir-name TOP_DIR_NAME, -t TOP_DIR_NAME
+                        Top dir of the resulting zip: Default=None means use
+                        the full name of the zip. A string means use that name
+                        as the top dir. '.' means no top dir; put the manifest
+                        and contents at top level. (default: None)
 ```
 The following arguments are required: `--base-version`/`-B`, `--name`/`-n`, `dir`.
 
