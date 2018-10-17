@@ -171,7 +171,7 @@ Pull requests and issues gratefully accepted!
 
 ## Authors
 
-* **Gary Oberbrunner** at Boris FX, Inc. (current maintainer)
+* [Gary Oberbrunner](https://github.com/garyo) at Boris FX, Inc. (current maintainer)
 
 ## License
 
