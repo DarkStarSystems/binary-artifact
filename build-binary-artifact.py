@@ -55,11 +55,26 @@ def write_manifest(name, args, extra):
             if not args.silent:
                 sys.stdout.write(extra)
 
+def filter_excludes(root, dirs, files, outname, args):
+    if args.verbose:
+        print(f'Processing r={root}, d={dirs}, f={files}')
+    if args.no_recurse:
+        dirs[:] = []
+    dirs[:] = [d for d in dirs if d not in args.exclude]
+    files[:] = [f for f in files if f not in args.exclude]
+    # Remove the file we're creating right now in case it's being created in the same dir
+    files[:] = [f for f in files if f != ('%s.zip' % outname)]
+    if not args.include_hidden:
+        dirs[:] = [d for d in dirs if d[0] != '.'] # exclude hidden dirs starting with "."
+        files[:] = [f for f in files if f[0] != '.'] # exclude hidden files
+    if args.verbose:
+        print(f'After exclude filtering at {root}: dirs={dirs}, files={files}')
+
 # http://stackoverflow.com/questions/24937495
 # http://akiscode.com/articles/sha-1directoryhash.shtml
 # Copyright (c) 2009 Stephen Akiki
 # MIT Licensed
-def hash_dir_contents(dirs, ignore_pattern=None, verbose=False):
+def hash_dir_contents(dirs, ignore_pattern, args):
     """Returns a hash (hex digest) of contents of the dir."""
     import hashlib, os
     SHAhash = hashlib.sha1()
@@ -80,6 +95,7 @@ def hash_dir_contents(dirs, ignore_pattern=None, verbose=False):
         else:
             try:
                 for root, dirs, files in os.walk(d):
+                    filter_excludes(root, dirs, files, "", args)
                     relpath = os.path.relpath(root, d)
                     dirs.sort()           # make sure order is stable
                     for name in sorted(files):
@@ -91,7 +107,7 @@ def hash_dir_contents(dirs, ignore_pattern=None, verbose=False):
                         # (only used for hashing)
                         relfilepath = os.path.normpath(os.path.join(relpath, name)).replace('\\', '/')
                         SHAhash.update(relfilepath.encode('utf-8'))
-                        if verbose:
+                        if args.verbose:
                             print("Updating SHA with file %s"%(relfilepath))
                         try:
                             f1 = open(filepath, 'rb')
@@ -110,7 +126,7 @@ def hash_dir_contents(dirs, ignore_pattern=None, verbose=False):
                 raise RuntimeError("hash_dir_contents: exception '%s' processing '%s'"%(e, d))
     return SHAhash.hexdigest()[0:16]
 
-def make_tarfile(dirs, manifest, manifest_name, outname, top_level_name, outdir, exclude=None):
+def make_tarfile(dirs, manifest, manifest_name, outname, top_level_name, outdir, args):
     """Make a tarfile named <outname>.tgz from all the files in dir
     Include the manifest, so the result looks like:
     tar filename: <outname>.tgz
@@ -119,7 +135,7 @@ def make_tarfile(dirs, manifest, manifest_name, outname, top_level_name, outdir,
         <manifest>
         dir/
           ...
-    Note: exclude is not yet implemented.
+    Note: exclude and no-recurse not yet implemented for tar files.
     """
     tarfilename = os.path.join(outdir, "%s.tgz" % outname)
     with tarfile.open(tarfilename, 'w:gz') as f:
@@ -128,7 +144,7 @@ def make_tarfile(dirs, manifest, manifest_name, outname, top_level_name, outdir,
             f.add(dir, '%s/%s' % (top_level_name, dir))
     return tarfilename
 
-def make_zipfile(dirs, manifest, manifest_name, outname, top_level_name, outdir, exclude=None):
+def make_zipfile(dirs, manifest, manifest_name, outname, top_level_name, outdir, args):
     """Make a zipfile named <outname>.zip from all the files in dir
     Include the manifest, so the result looks like:
     zip filename: <outname>.zip
@@ -137,7 +153,7 @@ def make_zipfile(dirs, manifest, manifest_name, outname, top_level_name, outdir,
         <manifest>
         dir/
           ...
-    Exclude any filename in the exclude list
+    Exclude any filename in the args.exclude list
     """
     zipfilename = os.path.join(outdir, "%s.zip" % outname)
     with zipfile.ZipFile(zipfilename, 'w', zipfile.ZIP_DEFLATED) as f:
@@ -145,12 +161,10 @@ def make_zipfile(dirs, manifest, manifest_name, outname, top_level_name, outdir,
         for dir in dirs:
             f.write(dir, '%s/%s' % (top_level_name, dir))
             for root, dirs, files in os.walk(dir):
-                # print(f'Processing {root} {dirs} {files}')
-                dirs[:] = [d for d in dirs if d not in exclude]
+                filter_excludes(root, dirs, files, ('%s.zip' % outname), args)
                 for file in files:
-                    if exclude is None or file not in exclude:
-                        name = os.path.join(root, file)
-                        f.write(name, '%s/%s' % (top_level_name, name))
+                    name = os.path.join(root, file)
+                    f.write(name, '%s/%s' % (top_level_name, name))
     return zipfilename
 
 def fullname(args, hash):
@@ -169,7 +183,7 @@ def create_artifact(args):
     orig_cwd=os.getcwd()
     if args.chdir:
         os.chdir(args.chdir)
-    hash = hash_dir_contents(sorted(args.dir), ignore_pattern="*-manifest.txt")
+    hash = hash_dir_contents(sorted(args.dir), ignore_pattern="*-manifest.txt", args=args)
     outname = fullname(args, hash)
     if args.top_dir_name is None:
         top_dir_name = outname
@@ -190,10 +204,10 @@ def create_artifact(args):
             os.unlink(existing_manifest)
     if args.tar:
         resultfile = make_tarfile(args.dir, manifest, manifest_name, outname, top_dir_name,
-                                  outdir_path, args.exclude)
+                                  outdir_path, args)
     else:
         resultfile = make_zipfile(args.dir, manifest, manifest_name, outname, top_dir_name,
-                                  outdir_path, args.exclude)
+                                  outdir_path, args)
     os.unlink(manifest)
     if not args.silent:
         print("Wrote %s"%resultfile)
@@ -203,14 +217,14 @@ def print_artifact_name(args):
     orig_cwd=os.getcwd()
     if args.chdir:
         os.chdir(args.chdir)
-    hash = hash_dir_contents(args.dir, ignore_pattern="*-manifest.txt")
+    hash = hash_dir_contents(args.dir, ignore_pattern="*-manifest.txt", args=args)
     print(fullname(args, hash))
 
 def print_artifact_hash(args):
     orig_cwd=os.getcwd()
     if args.chdir:
         os.chdir(args.chdir)
-    hash = hash_dir_contents(args.dir, ignore_pattern="*-manifest.txt")
+    hash = hash_dir_contents(args.dir, ignore_pattern="*-manifest.txt", args=args)
     print(hash)
 
 def validate_archive(args):
@@ -230,7 +244,7 @@ def validate_archive(args):
         print("Can't find hash line in manifest %s" % manifest)
         return
     key, expected = hashline[0].split(': ')
-    hash = hash_dir_contents(dir, ignore_pattern="*-manifest.txt")
+    hash = hash_dir_contents(dir, ignore_pattern="*-manifest.txt", args=args)
     if hash != expected:
         print("Hash mismatch: actual %s, expected %s" % (hash, expected))
         sys.exit(1)
@@ -325,6 +339,15 @@ def main(argv=None):
                             """\tDefault=None means use the full name of the zip."""
                             """\tA string means use that name as the top dir."""
                             """\t'.' means no top dir; put the manifest and contents at top level.""")
+        parser.add_argument('--no-recurse',
+                            action='store_true',
+                            help="""Don't recurse into subdirs of the dirs passed on the command line; only include files directly in those dirs.""")
+        parser.add_argument('--include-hidden',
+                            action='store_true',
+                            help="""Include "hidden" files and dirs beginning with "." (e.g. .git).""")
+        parser.add_argument('--verbose',
+                            action='store_true',
+                            help="""Be more verbose about processing individual files and dirs.""")
         args = parser.parse_args(argv)
 
         if args.build_branch is None:
