@@ -250,11 +250,11 @@ def validate_archive(args):
         sys.exit(1)
     print("Hash OK: %s."%hash)
 
-def cmd(cmd, name):
+def cmd(cmd, name, cwd=None):
     """Run shell command; if it fails, return None."""
     try:
         # Use Popen here in case we care about stderr, e.g. for debugging this code.
-        proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
         stdout, stderr = proc.communicate()
         stat = proc.returncode
         if stat == 0:
@@ -295,11 +295,11 @@ def main(argv=None):
         parser.add_argument('--bits', '-b', type=int, default=64,
                             help="""bits (32 or 64)""")
         parser.add_argument('--build-id', '-i',
-                            default=cmd("git rev-parse --short=10 HEAD", 'build-id'),
-                            help="""Build ID""")
+                            default=None,
+                            help="""Build ID (default: dynamic, based on git SHA of dir)""")
         parser.add_argument('--build-branch', '--branch',
-                            default=cmd("git rev-parse --abbrev-ref HEAD", 'build-branch'),
-                            help="""Build branch""")
+                            default=None,
+                            help="""Build branch (default: dynamic, based on git branch of dir)""")
         parser.add_argument('--build-date', '--date', '-D',
                             default=time.ctime(),
                             help="""Build date""")
@@ -356,9 +356,16 @@ def main(argv=None):
         args = parser.parse_args(argv)
 
         if args.build_branch is None:
-            print("Warning: Can't get default value for --build-branch; using None.")
+            args.build_branch = cmd("git rev-parse --abbrev-ref HEAD", 'build-branch',
+                                    os.path.join(args.chdir, args.dir[0]))
+            if args.build_branch is None:
+                print("Warning: Can't get default value for --build-branch; using None.")
         if args.build_id is None:
-            print("Warning: Can't get default value for --build-id; using None.")
+            args.build_id = cmd("git rev-parse --short=10 HEAD", 'build-id',
+                                os.path.join(args.chdir, args.dir[0]))
+            if args.build_id is None:
+                print("Warning: Can't get default value for --build-id; using 1.")
+                args.build_id = 1
 
         if args.validate:
             validate_archive(args)
