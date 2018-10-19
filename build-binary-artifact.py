@@ -258,7 +258,12 @@ def cmd(cmd, name):
         stdout, stderr = proc.communicate()
         stat = proc.returncode
         if stat == 0:
-            return stdout.strip()
+            out = stdout.strip()
+            try:
+                out = out.decode('utf-8')
+            except AttributeError:
+                pass
+            return out
         else:
             return None
     except Exception as e:
