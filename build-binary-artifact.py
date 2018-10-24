@@ -30,6 +30,9 @@ import time, datetime
 import subprocess
 import tarfile, zipfile
 
+import logging
+logging.basicConfig(format='%(message)s')
+
 def write_manifest(name, args, extra):
     """Write a manifest file from the args."""
     with open(name, "w") as f:
@@ -204,7 +207,7 @@ def create_artifact(args):
     for d in args.dir:
         existing_manifest = os.path.join(d, manifest_name)
         if os.path.exists(existing_manifest):
-            print("WARNING: %s already exists in source dir %s; deleting from source!" % (manifest_name, d))
+            logging.warning("WARNING: %s already exists in source dir %s; deleting from source!" % (manifest_name, d))
             os.unlink(existing_manifest)
     if args.tar:
         resultfile = make_tarfile(args.dir, manifest, manifest_name, outname, top_dir_name,
@@ -361,15 +364,19 @@ def main(argv=None):
                             help="""Be more verbose about processing individual files and dirs.""")
         args = parser.parse_args(argv)
 
-        curr = os.path.join(args.chdir if args.chdir is not None else '', args.dir[0])
+        if args.chdir is None:
+            dir = args.dir[0]
+        else:
+            dir = os.path.join(args.chdir, args.dir[0])
+
         if args.build_branch is None:
-            args.build_branch = cmd("git rev-parse --abbrev-ref HEAD", 'build-branch', curr)
+            args.build_branch = cmd("git rev-parse --abbrev-ref HEAD", 'build-branch', dir)
             if args.build_branch is None:
-                print("Warning: Can't get default value for --build-branch; using None.")
+                logging.warning("Warning: Can't get default value for --build-branch; using None.")
         if args.build_id is None:
-            args.build_id = cmd("git rev-parse --short=10 HEAD", 'build-id', curr)
+            args.build_id = cmd("git rev-parse --short=10 HEAD", 'build-id', dir)
             if args.build_id is None:
-                print("Warning: Can't get default value for --build-id; using 1.")
+                logging.warning("Warning: Can't get default value for --build-id; using 1.")
                 args.build_id = 1
 
         if args.validate:
