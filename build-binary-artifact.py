@@ -58,7 +58,7 @@ def write_manifest(name, args, extra):
             if not args.silent:
                 sys.stdout.write(extra)
 
-def filter_excludes_includes(root, dirs, files, outname, args):
+def filter_excludes(root, dirs, files, outname, args):
     if args.verbose:
         print(f'Processing r={root}, d={dirs}, f={files}')
     if args.no_recurse:
@@ -98,7 +98,7 @@ def hash_dir_contents(dirs, ignore_pattern, args):
         else:
             try:
                 for root, dirs, files in os.walk(d):
-                    filter_excludes_includes(root, dirs, files, "", args)
+                    filter_excludes(root, dirs, files, "", args)
                     relpath = os.path.relpath(root, d)
                     dirs.sort()           # make sure order is stable
                     for name in sorted(files):
@@ -166,7 +166,7 @@ def make_zipfile(dirs, manifest, manifest_name, outname, top_level_name, outdir,
         for dir in dirs:
             f.write(dir, '%s/%s' % (top_level_name, dir))
             for root, dirs, files in os.walk(dir):
-                filter_excludes_includes(root, dirs, files, ('%s.zip' % outname), args)
+                filter_excludes(root, dirs, files, ('%s.zip' % outname), args)
                 for file in files:
                     name = os.path.join(root, file)
                     f.write(name, '%s/%s' % (top_level_name, name))
