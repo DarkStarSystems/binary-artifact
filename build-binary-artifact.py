@@ -66,7 +66,7 @@ def filter_excludes(root, dirs, files, outname, args):
     dirs[:] = [d for d in dirs if d not in args.exclude]
     files[:] = [f for f in files if f not in args.exclude]
     # Remove the file we're creating right now in case it's being created in the same dir
-    files[:] = [f for f in files if f != ('%s.zip' % outname)]
+    files[:] = [f for f in files if f != outname]
     if not args.include_hidden:
         dirs[:] = [d for d in dirs if d[0] != '.'] # exclude hidden dirs starting with "."
         files[:] = [f for f in files if f[0] != '.'] # exclude hidden files
@@ -89,7 +89,7 @@ def hash_dir_contents(dirs, ignore_pattern, args):
         if not os.path.exists (d):
             raise IOError("Dir %s does not exist"%d)
         if os.path.isfile(d):
-            if verbose:
+            if args.verbose:
                 print("Updating SHA with top-level file %s"%(d))
             try:
                 SHAhash.update(d.encode('utf-8'))
@@ -145,6 +145,8 @@ def make_tarfile(dirs, manifest, manifest_name, outname, top_level_name, outdir,
         f.add(manifest, '%s/%s' % (top_level_name, manifest_name))
         for dir in dirs:
             f.add(dir, '%s/%s' % (top_level_name, dir))
+        for file in args.include:
+            f.add(file, '%s/%s' % (top_level_name, os.path.basename(file)))
     return tarfilename
 
 def make_zipfile(dirs, manifest, manifest_name, outname, top_level_name, outdir, args):
@@ -168,6 +170,8 @@ def make_zipfile(dirs, manifest, manifest_name, outname, top_level_name, outdir,
                 for file in files:
                     name = os.path.join(root, file)
                     f.write(name, '%s/%s' % (top_level_name, name))
+        for file in args.include:
+            f.write(file, '%s/%s' % (top_level_name, os.path.basename(file)))
     return zipfilename
 
 def fullname(args, hash):
@@ -339,6 +343,8 @@ def main(argv=None):
                             help="""Validate an unpacked archive by checking its hash against the manifest.""")
         parser.add_argument('--exclude', action='append', default=[],
                             help="""Exclude this filename from the archive. May be repeated.""")
+        parser.add_argument('--include', action='append', default=[],
+                            help="""Include this filename in the archive as if it existed in the first source dir. May be repeated.""")
         parser.add_argument('dir', nargs='+',
                             help="""dirs to collect into the binary artifact""")
         parser.add_argument('--top-dir-name', '-t',
