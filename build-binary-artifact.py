@@ -85,7 +85,7 @@ def hash_dir_contents(dirs, ignore_pattern, args):
     if type(dirs) == type(""):
         dirs = [dirs]
 
-    for d in sorted(dirs):
+    for d in sorted(dirs + args.include):
         if not os.path.exists (d):
             raise IOError("Dir %s does not exist"%d)
         if os.path.isfile(d):
