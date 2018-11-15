@@ -93,6 +93,14 @@ def hash_dir_contents(dirs, ignore_pattern, args):
                 print("Updating SHA with top-level file %s"%(d))
             try:
                 SHAhash.update(d.encode('utf-8'))
+                f1 = open(d, 'rb')
+                while 1:
+                    # Read file in as little chunks
+                    buf = f1.read(16384)
+                    if not buf:
+                        break
+                    SHAhash.update(buf)
+                f1.close()
             except Exception as e:
                 raise RuntimeError("hash_dir_contents: exception %s processing %s"%(e, d))
         else:
